@@ -1,0 +1,434 @@
+Berikut adalah struktur folder dan file untuk aplikasi To-Do List dengan implementasi Clean Architecture dan State Management menggunakan BLoC:
+
+```
+lib/
+|-- data/
+|   |-- datasources/
+|   |   |-- todo_datasource.dart
+|   |-- models/
+|   |   |-- todo_model.dart
+|   |-- repositories/
+|   |   |-- todo_repository.dart
+|-- domain/
+|   |-- entities/
+|   |   |-- todo.dart
+|   |-- repositories/
+|   |   |-- todo_repository.dart
+|   |-- usecases/
+|   |   |-- add_todo_usecase.dart
+|   |   |-- delete_todo_usecase.dart
+|   |   |-- get_todos_usecase.dart
+|   |   |-- update_todo_usecase.dart
+|-- bloc/
+|   |-- todo_bloc.dart
+|-- presentation/
+|   |-- screens/
+|   |   |-- todo_list_screen.dart
+|   |-- widgets/
+|   |   |-- add_todo_form.dart
+|-- main.dart
+```
+
+Berikut adalah isi dari masing-masing file:
+
+**lib/data/datasources/todo_datasource.dart**
+```dart
+import 'package:your_app/data/models/todo_model.dart';
+
+abstract class TodoDataSource {
+  Future<List<TodoModel>> getTodos();
+  Future<void> addTodo(TodoModel todo);
+  Future<void> updateTodoStatus(TodoModel todo);
+  Future<void> deleteTodo(TodoModel todo);
+}
+```
+
+**lib/data/models/todo_model.dart**
+```dart
+class TodoModel {
+  final String id;
+  final String title;
+  bool isCompleted;
+
+  TodoModel({
+    required this.id,
+    required this.title,
+    this.isCompleted = false,
+  });
+}
+```
+
+**lib/data/repositories/todo_repository.dart**
+```dart
+import 'package:your_app/data/datasources/todo_datasource.dart';
+import 'package:your_app/data/models/todo_model.dart';
+
+class TodoRepository {
+  final TodoDataSource dataSource;
+
+  TodoRepository(this.dataSource);
+
+  Future<List<TodoModel>> getTodos() {
+    return dataSource.getTodos();
+  }
+
+  Future<void> addTodo(TodoModel todo) {
+    return dataSource.addTodo(todo);
+  }
+
+  Future<void> updateTodoStatus(TodoModel todo) {
+    return dataSource.updateTodoStatus(todo);
+  }
+
+  Future<void> deleteTodo(TodoModel todo) {
+    return dataSource.deleteTodo(todo);
+  }
+}
+```
+
+**lib/domain/entities/todo.dart**
+```dart
+class Todo {
+  final String id;
+  final String title;
+  bool isCompleted;
+
+  Todo({
+    required this.id,
+    required this.title,
+    this.isCompleted = false,
+  });
+}
+```
+
+**lib/domain/repositories/todo_repository.dart**
+```dart
+import 'package:your_app/domain/entities/todo.dart';
+
+abstract class TodoRepository {
+  Future<List<Todo>> getTodos();
+  Future<void> addTodo(Todo todo);
+  Future<void> updateTodoStatus(Todo todo);
+  Future<void> deleteTodo(Todo todo);
+}
+```
+
+**lib/domain/usecases/add_todo_usecase.dart**
+```dart
+import 'package:your_app/domain/entities/todo.dart';
+import 'package:your_app/domain/repositories/todo_repository.dart';
+
+class AddTodoUseCase {
+  final TodoRepository repository;
+
+  AddTodoUseCase(this.repository);
+
+  Future<void> execute(Todo todo) {
+    return repository.addTodo(todo);
+  }
+}
+```
+
+**lib/domain/usecases/delete_todo_usecase.dart**
+```dart
+import 'package:your_app/domain/entities/todo.dart';
+import 'package:your_app/domain/repositories/todo_repository.dart';
+
+class DeleteTodoUseCase {
+  final TodoRepository repository;
+
+  DeleteTodoUseCase(this.repository);
+
+  Future<void> execute(Todo todo)
+
+ {
+    return repository.deleteTodo(todo);
+  }
+}
+```
+
+**lib/domain/usecases/get_todos_usecase.dart**
+```dart
+import 'package:your_app/domain/entities/todo.dart';
+import 'package:your_app/domain/repositories/todo_repository.dart';
+
+class GetTodosUseCase {
+  final TodoRepository repository;
+
+  GetTodosUseCase(this.repository);
+
+  Future<List<Todo>> execute() {
+    return repository.getTodos();
+  }
+}
+```
+
+**lib/domain/usecases/update_todo_usecase.dart**
+```dart
+import 'package:your_app/domain/entities/todo.dart';
+import 'package:your_app/domain/repositories/todo_repository.dart';
+
+class UpdateTodoUseCase {
+  final TodoRepository repository;
+
+  UpdateTodoUseCase(this.repository);
+
+  Future<void> execute(Todo todo) {
+    return repository.updateTodoStatus(todo);
+  }
+}
+```
+
+**lib/bloc/todo_bloc.dart**
+```dart
+import 'dart:async';
+
+import 'package:your_app/domain/entities/todo.dart';
+import 'package:your_app/domain/usecases/add_todo_usecase.dart';
+import 'package:your_app/domain/usecases/delete_todo_usecase.dart';
+import 'package:your_app/domain/usecases/get_todos_usecase.dart';
+import 'package:your_app/domain/usecases/update_todo_usecase.dart';
+
+class TodoBloc {
+  final GetTodosUseCase getTodosUseCase;
+  final AddTodoUseCase addTodoUseCase;
+  final UpdateTodoUseCase updateTodoUseCase;
+  final DeleteTodoUseCase deleteTodoUseCase;
+
+  final _todosController = StreamController<List<Todo>>.broadcast();
+
+  Stream<List<Todo>> get todosStream => _todosController.stream;
+
+  TodoBloc({
+    required this.getTodosUseCase,
+    required this.addTodoUseCase,
+    required this.updateTodoUseCase,
+    required this.deleteTodoUseCase,
+  });
+
+  void dispose() {
+    _todosController.close();
+  }
+
+  void getTodos() async {
+    List<Todo> todos = await getTodosUseCase.execute();
+    _todosController.sink.add(todos);
+  }
+
+  void addTodo(Todo todo) async {
+    await addTodoUseCase.execute(todo);
+    getTodos();
+  }
+
+  void updateTodoStatus(Todo todo) async {
+    await updateTodoUseCase.execute(todo);
+    getTodos();
+  }
+
+  void deleteTodo(Todo todo) async {
+    await deleteTodoUseCase.execute(todo);
+    getTodos();
+  }
+}
+```
+
+**lib/presentation/screens/todo_list_screen.dart**
+```dart
+import 'package:flutter/material.dart';
+import 'package:your_app/domain/entities/todo.dart';
+import 'package:your_app/bloc/todo_bloc.dart';
+import 'package:your_app/presentation/widgets/add_todo_form.dart';
+
+class TodoListScreen extends StatefulWidget {
+  final TodoBloc bloc;
+
+  const TodoListScreen({required this.bloc});
+
+  @override
+  _TodoListScreenState createState() => _TodoListScreenState();
+}
+
+class _TodoListScreenState extends State<TodoListScreen> {
+  @override
+  void initState() {
+    super.initState();
+    widget.bloc.getTodos();
+  }
+
+  @override
+  void dispose() {
+    widget.bloc.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('To-Do List'),
+      ),
+      body: StreamBuilder<List<Todo>>(
+        stream: widget.bloc.todosStream,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            List<Todo> todos = snapshot.data!;
+            return ListView.builder(
+              itemCount: todos.length,
+              itemBuilder: (context, index) {
+                return ListTile(
+                  title: Text(todos[index].title),
+
+
+                  leading: Checkbox(
+                    value: todos[index].isCompleted,
+                    onChanged: (value) {
+                      setState(() {
+                        todos[index].isCompleted = value!;
+                      });
+                      widget.bloc.updateTodoStatus(todos[index]);
+                    },
+                  ),
+                );
+              },
+            );
+          } else if (snapshot.hasError) {
+            return Text('Error: ${snapshot.error}');
+          }
+          return CircularProgressIndicator();
+        },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (context) {
+              return AddTodoForm(
+                onSubmit: (title) {
+                  Todo todo = Todo(
+                    id: DateTime.now().toString(),
+                    title: title,
+                  );
+                  widget.bloc.addTodo(todo);
+                },
+              );
+            },
+          );
+        },
+        child: Icon(Icons.add),
+      ),
+    );
+  }
+}
+```
+
+**lib/presentation/widgets/add_todo_form.dart**
+```dart
+import 'package:flutter/material.dart';
+
+class AddTodoForm extends StatefulWidget {
+  final Function(String) onSubmit;
+
+  const AddTodoForm({required this.onSubmit});
+
+  @override
+  _AddTodoFormState createState() => _AddTodoFormState();
+}
+
+class _AddTodoFormState extends State<AddTodoForm> {
+  final _formKey = GlobalKey<FormState>();
+  late String _title;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text('Add Todo'),
+      content: Form(
+        key: _formKey,
+        child: TextFormField(
+          autofocus: true,
+          validator: (value) {
+            if (value == null || value.isEmpty) {
+              return 'Please enter a title';
+            }
+            return null;
+          },
+          onChanged: (value) {
+            setState(() {
+              _title = value;
+            });
+          },
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+          child: Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: () {
+            if (_formKey.currentState!.validate()) {
+              widget.onSubmit(_title);
+              Navigator.of(context).pop();
+            }
+          },
+          child: Text('Add'),
+        ),
+      ],
+    );
+  }
+}
+```
+
+**lib/main.dart**
+```dart
+import 'package:flutter/material.dart';
+import 'package:your_app/data/datasources/todo_datasource.dart';
+import 'package:your_app/data/repositories/todo_repository.dart';
+import 'package:your_app/domain/usecases/add_todo_usecase.dart';
+import 'package:your_app/domain/usecases/delete_todo_usecase.dart';
+import 'package:your_app/domain/usecases/get_todos_usecase.dart';
+import 'package:your_app/domain/usecases/update_todo_usecase.dart';
+import 'package:your_app/bloc/todo_bloc.dart';
+import 'package:your_app/presentation/screens/todo_list_screen.dart';
+
+void main() {
+  TodoDataSource dataSource = TodoDataSource();
+  TodoRepository repository = TodoRepository(dataSource);
+  GetTodosUseCase getTodosUseCase = GetTodosUseCase(repository);
+  AddTodoUseCase addTodoUseCase = AddTodoUseCase(repository);
+  UpdateTodoUseCase updateTodoUseCase = UpdateTodoUseCase(repository);
+  DeleteTodoUseCase deleteTodoUseCase = DeleteTodoUseCase(repository);
+
+  TodoBloc todoBloc = TodoBloc(
+    getTodosUseCase: getTodosUseCase,
+    addTodoUseCase: addTodoUseCase,
+    updateTodoUseCase: updateTodoUseCase,
+    deleteTodoUseCase: deleteTodoUseCase,
+  );
+
+  runApp(MyApp(todoBloc: todoBloc));
+}
+
+class MyApp extends StatelessWidget {
+  final TodoBloc todoBloc;
+
+  const MyApp({required this.todoBloc});
+
+
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'To-Do List',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+      ),
+      home: TodoListScreen(bloc: todoBloc),
+    );
+  }
+}
+```
+
+Pastikan untuk menyesuaikan implementasi kode dengan kebutuhan aplikasi To-Do List Anda.

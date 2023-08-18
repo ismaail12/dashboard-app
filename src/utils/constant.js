@@ -1,0 +1,1 @@
+export const API_URL = 'https://ismail.menarahr.my.id/api/'
